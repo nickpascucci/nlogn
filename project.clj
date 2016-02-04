@@ -6,6 +6,7 @@
   :dependencies [
                  [compojure "1.1.6"]
                  [endophile "0.1.2"]
+                 [enlive "1.1.6"]
                  [environ "0.2.1"]
                  [hiccup "1.0.5"]
                  [http-kit "2.1.16"]

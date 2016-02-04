@@ -1,17 +1,18 @@
 (ns nlogn.core
-  (:require [compojure.core :refer [defroutes GET PUT POST DELETE ANY]]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [compojure.handler :refer [site]]
             [org.httpkit.server :as server]
             [ring.middleware.session.cookie :as cookie]
             [ring.middleware.stacktrace :as trace]
             [nlogn.handler :as handler]
+            [nlogn.content :as ctnt]
             [environ.core :refer [env]]
             [compojure.route :as route])
   (:gen-class))
 
 (defonce server-handle (atom {:server nil
-                              :port nil}))
+                              :port nil
+                              :cfg-path nil}))
 
 (defn wrap-error-page [handler]
   (fn [req]
@@ -21,7 +22,7 @@
             :headers {"Content-Type" "text/html"}
             :body (slurp (io/resource "500.html"))}))))
 
-(defn start-server! [port]
+(defn start-server! [port cfg-path]
   (println "running nlogn server on port" port)
   (swap! server-handle assoc :server
          (server/run-server
@@ -34,15 +35,18 @@
                                (cookie/cookie-store
                                 {:key (env :session-secret)})}}))
           {:port port :join? false})
-         :port port))
+         :port port
+         :cfg-path cfg-path)
+  (ctnt/load-config! cfg-path))
 
 (defn stop-server! []
   ((:server @server-handle)))
 
 (defn restart-server! []
   (stop-server!)
-  (start-server! (:port @server-handle)))
+  (start-server! (:port @server-handle)
+                 (:cfg-path @server-handle)))
 
-(defn -main [& [port]]
+(defn -main [& [port cfg-path]]
   (let [port (Integer. (or port (env :port) 5000))]
-    (start-server! port)))
+    (start-server! port cfg-path)))
