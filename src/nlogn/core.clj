@@ -14,6 +14,11 @@
                               :port nil
                               :cfg-path nil}))
 
+(defn wrap-logging [handler]
+  (fn [req]
+    (println (:request-method req) (:uri req))
+    (handler req)))
+
 (defn wrap-error-page [handler]
   (fn [req]
     (try (handler req)
@@ -28,6 +33,7 @@
   (swap! server-handle assoc :server
          (server/run-server
           (-> (handler/make-app)
+              (wrap-logging)
               ((if (env :production)
                  wrap-error-page
                  trace/wrap-stacktrace))

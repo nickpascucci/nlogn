@@ -22,9 +22,17 @@
   :allowed-methods [:get]
   :exists? (fn [_]
              (println "Checking for" post-path)
-             (if-let [post (ctnt/get-post-for-path post-path)]
+             (if-let [post (ctnt/get-item-for-path (ctnt/posts) post-path)]
                {::data (ctnt/render-post post)
                 ::id post-path}))
+  :handle-not-found (ring-response
+                     (resp/resource-response "404.html" {:root "public"}))
+  :handle-ok ::data)
+
+(defresource archive-resource
+  :available-media-types ["text/html"]
+  :allowed-methods [:get]
+  :exists? (fn [_] {::data (ctnt/render-archive)})
   :handle-not-found (ring-response
                      (resp/resource-response "404.html" {:root "public"}))
   :handle-ok ::data)
@@ -32,6 +40,7 @@
 (defn make-routes []
   (routes
    (GET "/config/reload" [] config-resource)
+   (GET "/blog/archives" [] archive-resource)
    (GET "/blog/*" {{path :*} :params} (post-resource path))
    (GET "/" [] (resp/resource-response "index.html" {:root "public"}))
    (route/files "/" {:root (get-in @ctnt/config [:settings :resource-path])})
