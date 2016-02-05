@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
-                 [compojure "1.1.6"]
+                 [compojure "1.4.0"]
                  [endophile "0.1.2"]
                  [enlive "1.1.6"]
                  [environ "0.2.1"]

@@ -29,14 +29,17 @@
                      (resp/resource-response "404.html" {:root "public"}))
   :handle-ok ::data)
 
-(defroutes app-routes
-  (GET "/config/reload" [] config-resource)
-  (GET "/posts/*" {{path :*} :params} (post-resource path))
-  (GET "/" [] (resp/resource-response "index.html" {:root "public"}))
-  (route/resources "/")
-  (route/not-found (resp/resource-response "404.html" {:root "public"})))
+(defn make-routes []
+  (routes
+   (GET "/config/reload" [] config-resource)
+   (GET "/blog/*" {{path :*} :params} (post-resource path))
+   (GET "/" [] (resp/resource-response "index.html" {:root "public"}))
+   (route/files "/" {:root (get-in @ctnt/config [:settings :resource-path])})
+   (route/resources "/")
+   (route/not-found (resp/resource-response "404.html" {:root "public"}))))
 
-(def app (-> app-routes
-             (wrap-json-response)
-             (wrap-json-body {:keywords? true})
-             (handler/api)))
+(defn make-app []
+  (-> (make-routes)
+      (wrap-json-response)
+      (wrap-json-body {:keywords? true})
+      (handler/api)))

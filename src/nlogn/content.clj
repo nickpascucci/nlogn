@@ -7,34 +7,27 @@
             [net.cgrand.enlive-html :as enlive]))
 
 (def config (atom {:path ""
-                   :settings {:posts [{:path "test"
-                                   :content "test/test.md"}]}}))
+                   :settings {:posts []
+                              :resource-path ""
+                              :templates {}}}))
 
 (defn load-config! [config-path]
-  (reset! config {:path config-path
-                :settings (edn/read-string (slurp config-path))}))
+  (let [settings (edn/read-string (slurp config-path))]
+    (println "Loaded new settings" settings)
+    (reset! config {:path config-path
+                    :settings settings})))
 
 (defn reload-config! []
   (load-config! (:path @config)))
 
-(enlive/deftemplate post-page "templates/post.html"
-  [post]
-  [:title] (enlive/content (:title post))
-  [:h1] (enlive/content (:title post))
-  [:span.author] (enlive/content (:author post))
-  [:div.post-body] (enlive/html-content (:rendered-body post)))
-
-(defn render-post [post]
-  (let [post (assoc post :rendered-body (hic/html (get-post-body post)))]
-    (reduce str (post-page post))))
-
 (defn file-exists? [path]
   (.exists (clojure.java.io/as-file path)))
 
-;; TODO alias everything into the content directory
 (defn get-post-body [post]
   (when (file-exists? (:content post))
-    (eph/to-hiccup (epc/mp (slurp (:content post))))))
+    (if (.endsWith (:content post) ".md")
+      (hic/html (eph/to-hiccup (epc/mp (slurp (:content post)))))
+      (slurp (:content post)))))
 
 (defn get-post-for-path [path]
   (let [posts (get-in @config [:settings :posts])
@@ -42,3 +35,19 @@
     (println "Posts:" posts)
     (println "Found post for path:" post)
     post))
+
+(defn post-template [post]
+  (let [template-type (:template post)
+        template-path (get-in @config [:settings :templates template-type])]
+    (enlive/template (io/reader template-path) [post]
+                     ;; [:title] (enlive/content (:title post))
+                     ;; TODO publication date
+                     [:h1] (enlive/content (:title post))
+                     [:span.author] (enlive/content (:author post))
+                     [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
+                     [:div.post-body] (enlive/html-content (:rendered-body post)))))
+
+(defn render-post [post]
+  (let [post (assoc post :rendered-body (get-post-body post))
+        template (post-template post)]
+    (reduce str (template post))))

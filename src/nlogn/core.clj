@@ -24,9 +24,10 @@
 
 (defn start-server! [port cfg-path]
   (println "running nlogn server on port" port)
+  (ctnt/load-config! cfg-path)
   (swap! server-handle assoc :server
          (server/run-server
-          (-> #'handler/app
+          (-> (handler/make-app)
               ((if (env :production)
                  wrap-error-page
                  trace/wrap-stacktrace))
@@ -36,8 +37,7 @@
                                 {:key (env :session-secret)})}}))
           {:port port :join? false})
          :port port
-         :cfg-path cfg-path)
-  (ctnt/load-config! cfg-path))
+         :cfg-path cfg-path))
 
 (defn stop-server! []
   ((:server @server-handle)))
