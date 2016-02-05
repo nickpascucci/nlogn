@@ -1,5 +1,7 @@
 (ns nlogn.content
-  (:require [clojure.java.io :as io]
+  (:require [clj-time.core :as time]
+            [clj-time.format :as tfmt]
+            [clojure.java.io :as io]
             [clojure.edn :as edn]
             [endophile.core :as epc]
             [endophile.hiccup :as eph]
@@ -36,6 +38,15 @@
     (println "Found post for path:" post)
     post))
 
+(defn- render-date [date]
+  ;; TODO Pull format into the config
+  (tfmt/unparse (tfmt/formatter "dd MMMM yyyy")
+                (tfmt/parse (tfmt/formatter "yyyy-mm-dd") date)))
+
+(defn- render-year [date]
+  (tfmt/unparse (tfmt/formatter "yyyy")
+                (tfmt/parse (tfmt/formatter "yyyy-mm-dd") date)))
+
 (defn post-template [post]
   (let [template-type (:template post)
         template-path (get-in @config [:settings :templates template-type])]
@@ -44,6 +55,8 @@
                      ;; TODO publication date
                      [:h1] (enlive/content (:title post))
                      [:span.author] (enlive/content (:author post))
+                     [:time] (enlive/content (render-date (:date post)))
+                     [:time.year] (enlive/content (render-year (:date post)))
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
                      [:div.post-body] (enlive/html-content (:rendered-body post)))))
 
