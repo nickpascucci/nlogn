@@ -83,12 +83,26 @@
   "Sort the given posts from most to least recent."
   (sort (invert compare-dates) posts))
 
+(defn- by-tag [posts]
+  (reduce (fn [tags post]
+            (reduce (fn [tags tag]
+                      (assoc tags tag (conj (get tags tag) post)))
+                    tags (:tags post)))
+          {} posts))
+
 (defn posts []
   "Get all of the posts, ordered from most recent to least recent."
   (by-recency (get-in @config [:settings :posts])))
 
 (defn pages []
   (get-in @config [:settings :pages]))
+
+(defn special-page? [page]
+  (contains? [:archive :index] (:content page)))
+
+(defn- get-template [name]
+  (println "Getting template for" name)
+  (io/reader (get-in @config [:settings :templates name])))
 
 (defn- gen-navi [pages]
   (into []
@@ -100,27 +114,26 @@
 (defn- post-link [post]
   (str "/blog/" (:path post)))
 
-(defn get-post-body [post]
-  (when (file-exists? (:content post))
-    (if (.endsWith (:content post) ".md")
-      (hic/html (eph/to-hiccup (epc/mp (slurp (:content post)))))
-      (slurp (:content post)))))
+(defn- get-body [item]
+  (when (file-exists? (:content item))
+    (if (.endsWith (:content item) ".md")
+      (hic/html (eph/to-hiccup (epc/mp (slurp (:content item)))))
+      (slurp (:content item)))))
 
-(defn get-item-for-path [items path]
+(defn- get-item-for-path [items path]
+  (println "Searching for item to path" path)
   (first (filter (fn [p] (= (:path p) path)) items)))
 
 (defn- post-template [post prev next]
-  (println "\nPrev:" prev "\nPost:" post "\nNext:" next)
-  (let [template-type (:template post)
-        template-path (get-in @config [:settings :templates template-type])]
-    (enlive/template (io/reader template-path) [post]
+  (let [template (get-template (:template post))]
+    (enlive/template template [post]
                      [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
                      [:h1] (enlive/content (:title post))
                      [:span.author] (enlive/content (:author post))
                      [:time] (enlive/content (render-date (post-date post)))
                      [:time.year] (enlive/content (render-year (post-date post)))
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
-                     [:div.post-body] (enlive/html-content (get-post-body post))
+                     [:div.post-body] (enlive/html-content (get-body post))
                      [:div.older] (if (nil? prev)
                                      (enlive/content "")
                                      (enlive/html-content
@@ -133,21 +146,18 @@
                                      (enlive/html-content
                                       (hic/html [:a {:href (post-link next)} "Newer"]))))))
 
-(defn render-post
-  ([path] (let [posts (posts)
-                post (get-item-for-path posts path)
-                index (.indexOf posts post)
-                prev (when (< index (- (count posts) 1))
-                       (nth posts (+ index 1)))
-                next (when (> index 0)
-                       (nth posts (- index 1)))]
-            (render-post post prev next)))
-  ([post prev next]
-   (let [template (post-template post prev next)]
-     (reduce str (template post)))))
-
-(defn get-page [path]
+(defn- get-page [path]
   (get-item-for-path (pages) path))
+
+(defn- page-template [page]
+  (println "Rendering page" page)
+  (let [template (get-template (:template page))]
+    (enlive/template template []
+                     [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
+                     [:h1] (enlive/content (:title page))
+                     [:time.year] (enlive/content (render-year (time/now)))
+                     [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
+                     [:div.page-body] (enlive/html-content (get-body page)))))
 
 (defn- partition-by-recency [posts]
   (let [posts (reverse (by-recency posts))]
@@ -173,11 +183,10 @@
                                       months))))
                 posts-by-recency))))
 
-(defn- archive-template []
-  (let [template-type (:template (get-page "/blog/archives"))
-        template-path (get-in @config [:settings :templates template-type])]
-    (enlive/template (io/reader template-path) [posts]
-                     [:h1] (enlive/content "Archives")
+(defn- dated-page-template [page-title]
+  (let [template (get-template (:template (get-page "/blog/archives")))]
+    (enlive/template template [posts]
+                     [:h1] (enlive/content page-title)
                      [:time.year] (enlive/content (render-year (time/now)))
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
                      [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
@@ -185,15 +194,11 @@
                      (enlive/html-content (reduce str (map (fn [e] (hic/html e))
                                                            (archive-items posts)))))))
 
-(defn render-archive []
-  (reduce str ((archive-template) (posts))))
-
 (defn- index-template [posts]
   (let [post (first (by-recency posts))
-        rendered-post (assoc post :rendered-body (get-post-body post))
-        template-type (:template (get-page "/"))
-        template-path (get-in @config [:settings :templates template-type])]
-    (enlive/template (io/reader template-path) []
+        rendered-post (assoc post :rendered-body (get-body post))
+        template (get-template (:template (get-page "/")))]
+    (enlive/template template []
                      [:h1] (enlive/content (:title rendered-post))
                      [:span.author] (enlive/content (:author rendered-post))
                      [:time] (enlive/content (render-date (post-date rendered-post)))
@@ -202,10 +207,7 @@
                      [:div.post-body] (enlive/html-content (:rendered-body rendered-post))
                      [:div.navi] (enlive/html-content (hic/html (gen-navi (pages)))))))
 
-(defn render-index []
-  (reduce str ((index-template (posts)))))
-
-(defn- entry [post]
+(defn- atom-entry [post]
   (let [post-url (str (get-in @config [:settings :site-url]) "/blog/" (:path post))]
     [:entry
      [:title (:title post)]
@@ -213,7 +215,7 @@
      [:author [:name (get-in @config [:settings :site-author])]]
      [:link {:href post-url}]
      [:id post-url]
-     [:content {:type "html"} (get-post-body post)]]))
+     [:content {:type "html"} (get-body post)]]))
 
 (defn atom-xml [posts]
   (xml/emit-str
@@ -224,7 +226,43 @@
      [:title {:type "text"} (get-in @config [:settings :site-title])]
      [:link {:rel "self" :href (str (get-in @config [:settings :site-url]) "/atom.xml")}]
      [:author [:name (get-in @config [:settings :site-author])]]
-     (map entry posts)])))
+     (map atom-entry posts)])))
 
-(defn generate-feed []
+(defn render-feed []
   (atom-xml (posts)))
+
+(defn render-post
+  ([path] (let [posts (posts)
+                post (get-item-for-path posts path)
+                index (.indexOf posts post)
+                prev (when (< index (- (count posts) 1))
+                       (nth posts (+ index 1)))
+                next (when (> index 0)
+                       (nth posts (- index 1)))]
+            (render-post post prev next)))
+  ([post prev next]
+   (let [template (post-template post prev next)]
+     (reduce str (template post)))))
+
+(defn render-page [path]
+  (reduce str ((page-template (get-item-for-path (pages) path)))))
+
+(defn render-index []
+  (reduce str ((index-template (posts)))))
+
+(defn render-category [category]
+  (reduce str ((dated-page-template (str "Category: " category))
+               (get (by-tag (posts)) category))))
+
+(defn render-archive []
+  (reduce str ((dated-page-template "Archive") (posts))))
+
+
+
+
+
+
+
+
+
+

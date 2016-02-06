@@ -6,7 +6,7 @@
 This is a test markdown file, used for exercising nlogn.[^1]
 
 ![Broken picture!](/img/broken.brokenjpg "A broken image")
-![Cat picture!](/img/cat.jpg "A cat pic")
+![Cat picture!](/res/img/cat.jpg "A cat pic")
 
 ```
 This is a code sample, in GitHub-flavored Markdown.

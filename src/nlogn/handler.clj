@@ -22,9 +22,27 @@
   :allowed-methods [:get]
   :exists? (fn [_]
              (println "Checking for" post-path)
-             (if-let [post (ctnt/render-post post-path)]
+             (when-let [post (ctnt/render-post post-path)]
                {::data post
                 ::id post-path}))
+  :handle-not-found (ring-response
+                     (resp/resource-response "404.html" {:root "public"}))
+  :handle-ok ::data)
+
+(defresource page-resource [path]
+  :available-media-types ["text/html"]
+  :allowed-methods [:get]
+  :exists? (fn [_]  (when-let [page (ctnt/render-page path)]
+                     {::data page}))
+  :handle-not-found (ring-response
+                     (resp/resource-response "404.html" {:root "public"}))
+  :handle-ok ::data)
+
+(defresource category-resource [category]
+  :available-media-types ["text/html"]
+  :allowed-methods [:get]
+  :exists? (fn [_] (when-let [page (ctnt/render-category category)]
+                    {::data page}))
   :handle-not-found (ring-response
                      (resp/resource-response "404.html" {:root "public"}))
   :handle-ok ::data)
@@ -48,24 +66,34 @@
 (defresource feed-resource
   :available-media-types ["text/xml"]
   :allowed-methods [:get]
-  :exists? (fn [_] {::data (ctnt/generate-feed)})
+  :exists? (fn [_] {::data (ctnt/render-feed)})
   :handle-not-found (ring-response
                      (resp/resource-response "404.html" {:root "public"}))
   :handle-ok ::data)
 
-(defn make-routes []
+(defn- make-blog-routes []
   (routes
    (GET "/atom.xml" [] feed-resource)
    (GET "/config/reload" [] config-resource)
    (GET "/blog/archives" [] archive-resource)
+   (GET "/blog/categories/:category" [category] (category-resource category))
    (GET "/blog/*" {{path :*} :params} (post-resource path))
-   (GET "/" [] index-resource)
-   (route/files "/" {:root (get-in @ctnt/config [:settings :resource-path])})
-   (route/resources "/")
-   (route/not-found (resp/resource-response "404.html" {:root "public"}))))
+   (GET "/" [] index-resource)))
+
+(defn- make-static-routes []
+  (routes
+   (route/files "/res/" {:root (get-in @ctnt/config [:settings :resource-path])})))
+
+(defn- make-page-routes []
+  (routes
+   (GET "/*" {{path :*} :params} (page-resource (str "/" path)))))
 
 (defn make-app []
-  (-> (make-routes)
+  (-> (routes
+       (make-blog-routes)
+       (make-static-routes)
+       (make-page-routes)
+       (route/not-found (resp/resource-response "404.html" {:root "public"})))
       (wrap-json-response)
       (wrap-json-body {:keywords? true})
       (handler/api)))
