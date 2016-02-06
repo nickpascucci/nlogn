@@ -4,9 +4,10 @@ nlogn is a custom blog system designed to meet my (nick pascucci) needs.
 
 # TODO
 ## V1
-+ Static pages
++ Forward/back links
 + Render tags
 + Tag pages
++ Static page generation
 + Configurable site title
 
 ## V2
