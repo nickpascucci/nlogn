@@ -22,8 +22,8 @@
   :allowed-methods [:get]
   :exists? (fn [_]
              (println "Checking for" post-path)
-             (if-let [post (ctnt/get-item-for-path (ctnt/posts) post-path)]
-               {::data (ctnt/render-post post)
+             (if-let [post (ctnt/render-post post-path)]
+               {::data post
                 ::id post-path}))
   :handle-not-found (ring-response
                      (resp/resource-response "404.html" {:root "public"}))

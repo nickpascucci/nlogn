@@ -596,17 +596,19 @@ p>code {
 .pagination .newer {
     position: absolute;
     top: 0;
-    right: 0
+    right: 0;
+    text-align: right;
 }
 .pagination .older {
     position: absolute;
     top: 0;
-    left: 0
+    left: 0;
+    text-align: left;
 }
-.pagination span {
+.pagination .total {
     display: block;
     width: 100%;
-    text-align: center
+    text-align: center;
 }
 .cat-year {
     padding-top: 1.5em;

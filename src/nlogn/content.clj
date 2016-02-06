@@ -97,6 +97,9 @@
                                   (:title p)]])
                      pages))))
 
+(defn- post-link [post]
+  (str "/blog/" (:path post)))
+
 (defn get-post-body [post]
   (when (file-exists? (:content post))
     (if (.endsWith (:content post) ".md")
@@ -106,22 +109,42 @@
 (defn get-item-for-path [items path]
   (first (filter (fn [p] (= (:path p) path)) items)))
 
-(defn- post-template [post]
+(defn- post-template [post prev next]
+  (println "\nPrev:" prev "\nPost:" post "\nNext:" next)
   (let [template-type (:template post)
         template-path (get-in @config [:settings :templates template-type])]
     (enlive/template (io/reader template-path) [post]
+                     [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
                      [:h1] (enlive/content (:title post))
                      [:span.author] (enlive/content (:author post))
                      [:time] (enlive/content (render-date (post-date post)))
                      [:time.year] (enlive/content (render-year (post-date post)))
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
-                     [:div.post-body] (enlive/html-content (:rendered-body post))
-                     [:div.navi] (enlive/html-content (hic/html (gen-navi (pages)))))))
+                     [:div.post-body] (enlive/html-content (get-post-body post))
+                     [:div.older] (if (nil? prev)
+                                     (enlive/content "")
+                                     (enlive/html-content
+                                      (hic/html [:a {:href (post-link prev)} "Older"])))
+                     [:div.total] (enlive/content (str (+ 1 (.indexOf (posts) post))
+                                                       " of "
+                                                       (count (posts))))
+                     [:div.newer] (if (nil? next)
+                                     (enlive/content "")
+                                     (enlive/html-content
+                                      (hic/html [:a {:href (post-link next)} "Newer"]))))))
 
-(defn render-post [post]
-  (let [post (assoc post :rendered-body (get-post-body post))
-        template (post-template post)]
-    (reduce str (template post))))
+(defn render-post
+  ([path] (let [posts (posts)
+                post (get-item-for-path posts path)
+                index (.indexOf posts post)
+                prev (when (< index (- (count posts) 1))
+                       (nth posts (+ index 1)))
+                next (when (> index 0)
+                       (nth posts (- index 1)))]
+            (render-post post prev next)))
+  ([post prev next]
+   (let [template (post-template post prev next)]
+     (reduce str (template post)))))
 
 (defn get-page [path]
   (get-item-for-path (pages) path))
