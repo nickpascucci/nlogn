@@ -14,6 +14,7 @@
                  [javax.servlet/servlet-api "2.5"]
                  [liberator "0.10.0"]
                  [org.clojure/clojure "1.6.0"]
+                 [org.clojure/data.xml "0.0.8"]
                  [ring/ring-core "1.2.1"]
                  [ring/ring-devel "1.1.0"]
                  [ring/ring-json "0.2.0"]

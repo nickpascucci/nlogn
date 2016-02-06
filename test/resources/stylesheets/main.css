@@ -446,7 +446,8 @@ header .navi ul li {
 }
 header .navi ul li a {
     color: #333;
-    text-decoration: none
+    text-decoration: none;
+    text-transform: lowercase;
 }
 header .navi ul li a:hover,
 header .navi ul li a:active {
@@ -561,11 +562,16 @@ pre .clip-btn {
         display: none
     }
 }
+pre {
+    background-color: #ECECEC;
+    padding: 0.4em;
+}
 code {
     margin: 0.4em 0;
     padding: 0.4em;
     font-family: "Source Code Pro";
-    font-size: 0.75em
+    font-size: 0.75em;
+    line-height: 2em;
 }
 p>code {
     border: 1px solid #dfdfdf;

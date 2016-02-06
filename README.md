@@ -7,14 +7,13 @@ nlogn is a custom blog system designed to meet my (nick pascucci) needs.
 + Static pages
 + Render tags
 + Tag pages
-+ Pre- and post-template includes
 + Configurable site title
-+ Atom feed generation
 
 ## V2
-+ Nicer config reload page, with HTTP-basic auth
 + Dump site to static files *a la* Octopress
 + Extend Endophile/pegdown to support missing MultiMarkdown features
++ Pre- and post-template includes
 + Garden-based CSS
++ Nicer config reload page, with HTTP-basic auth
 
 Copyright © 2016 Nick Pascucci

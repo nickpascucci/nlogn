@@ -37,12 +37,29 @@
                      (resp/resource-response "404.html" {:root "public"}))
   :handle-ok ::data)
 
+(defresource index-resource
+  :available-media-types ["text/html"]
+  :allowed-methods [:get]
+  :exists? (fn [_] {::data (ctnt/render-index)})
+  :handle-not-found (ring-response
+                     (resp/resource-response "404.html" {:root "public"}))
+  :handle-ok ::data)
+
+(defresource feed-resource
+  :available-media-types ["text/xml"]
+  :allowed-methods [:get]
+  :exists? (fn [_] {::data (ctnt/generate-feed)})
+  :handle-not-found (ring-response
+                     (resp/resource-response "404.html" {:root "public"}))
+  :handle-ok ::data)
+
 (defn make-routes []
   (routes
+   (GET "/atom.xml" [] feed-resource)
    (GET "/config/reload" [] config-resource)
    (GET "/blog/archives" [] archive-resource)
    (GET "/blog/*" {{path :*} :params} (post-resource path))
-   (GET "/" [] (resp/resource-response "index.html" {:root "public"}))
+   (GET "/" [] index-resource)
    (route/files "/" {:root (get-in @ctnt/config [:settings :resource-path])})
    (route/resources "/")
    (route/not-found (resp/resource-response "404.html" {:root "public"}))))
