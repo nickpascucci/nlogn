@@ -412,7 +412,6 @@ h2 {
 .wrap>footer {
     margin-top: 2em;
     padding: 2em 0;
-    border-top: 1px solid #dfdfdf;
     text-align: center;
     font-size: 0.8em
 }
@@ -479,8 +478,6 @@ article .content {
 }
 article footer {
     padding: 1em 0;
-    border-bottom: 1px solid #dfdfdf;
-    border-top: 1px solid #dfdfdf
 }
 article h1,
 article h2,
@@ -514,8 +511,8 @@ article header time {
     font-size: 1em;
     font-style: normal
 }
-article hr {
-    margin: 4em !important;
+hr {
+    margin: 2em !important;
     height: 1px;
     border: none;
     color: #dfdfdf;

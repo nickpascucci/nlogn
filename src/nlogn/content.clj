@@ -4,6 +4,7 @@
             [clojure.data.xml :as xml]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
+            [clojure.string :as str]
             [endophile.core :as epc]
             [endophile.hiccup :as eph]
             [hiccup.core :as hic]
@@ -124,6 +125,10 @@
   (println "Searching for item to path" path)
   (first (filter (fn [p] (= (:path p) path)) items)))
 
+(defn- tag-items [post]
+  (into [] (map (fn [tag] [:a {:href (str "/blog/categories/" tag)} tag])
+                (:tags post))))
+
 (defn- post-template [post prev next]
   (let [template (get-template (:template post))]
     (enlive/template template [post]
@@ -144,7 +149,10 @@
                      [:div.newer] (if (nil? next)
                                      (enlive/content "")
                                      (enlive/html-content
-                                      (hic/html [:a {:href (post-link next)} "Newer"]))))))
+                                      (hic/html [:a {:href (post-link next)} "Newer"])))
+                     [:span.tags] (enlive/html-content
+                                   (str/join ", " (map (fn [e] (str (hic/html e)))
+                                                       (tag-items post)))))))
 
 (defn- get-page [path]
   (get-item-for-path (pages) path))
@@ -177,7 +185,7 @@
                                         (concat [[:div.cat-month month]]
                                                 (map (fn [post]
                                                        [:a {:class "title-listing"
-                                                            :href (:path post)}
+                                                            :href (str "/blog/" (:path post))}
                                                         (:title post)])
                                                      posts)))
                                       months))))
