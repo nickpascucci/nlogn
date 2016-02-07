@@ -129,9 +129,39 @@
   (into [] (map (fn [tag] [:a {:href (str "/blog/categories/" tag)} tag])
                 (:tags post))))
 
+(defn- htmlize [e] (str (hic/html e)))
+
+(defn- gen-comments [post]
+  [:div#disqus_thread
+   [:script
+    (str/replace
+     "var disqus_config = function () {
+this.page.url = \"PAGE_URL\";
+this.page.identifier = \"PAGE_IDENTIFIER\";
+};
+(function() {
+var d = document, s = d.createElement('script');
+s.src = '//technomerit.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();" #"PAGE_URL|PAGE_IDENTIFIER" (str (get-in @config [:settings :site-url]) (:path post)))]
+   [:noscript [:i "Please enable JavaScript to view the comments."]]])
+
+(defn- gen-pagination [post prev next]
+  (apply str (map htmlize
+                  [(if (nil? prev)
+                     ""
+                     [:a.older {:href (post-link prev)} "Older"])
+                   (str (+ 1 (.indexOf (posts) post))
+                        " of "
+                        (count (posts)))
+                   (if (nil? next)
+                     ""
+                     [:a.newer {:href (post-link next)} "Newer"])])))
+
 (defn- post-template [post prev next]
   (let [template (get-template (:template post))]
-    (enlive/template template [post]
+    (enlive/template template []
                      [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
                      [:h1] (enlive/content (:title post))
                      [:span.author] (enlive/content (:author post))
@@ -139,20 +169,10 @@
                      [:time.year] (enlive/content (render-year (post-date post)))
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
                      [:div.post-body] (enlive/html-content (get-body post))
-                     [:div.older] (if (nil? prev)
-                                     (enlive/content "")
-                                     (enlive/html-content
-                                      (hic/html [:a {:href (post-link prev)} "Older"])))
-                     [:div.total] (enlive/content (str (+ 1 (.indexOf (posts) post))
-                                                       " of "
-                                                       (count (posts))))
-                     [:div.newer] (if (nil? next)
-                                     (enlive/content "")
-                                     (enlive/html-content
-                                      (hic/html [:a {:href (post-link next)} "Newer"])))
+                     [:div.comments] (enlive/html-content (hic/html (gen-comments post)))
+                     [:div.pagination] (enlive/html-content (gen-pagination post prev next))
                      [:span.tags] (enlive/html-content
-                                   (str/join ", " (map (fn [e] (str (hic/html e)))
-                                                       (tag-items post)))))))
+                                   (str/join ", " (map htmlize (tag-items post)))))))
 
 (defn- get-page [path]
   (get-item-for-path (pages) path))
@@ -204,16 +224,8 @@
 
 (defn- index-template [posts]
   (let [post (first (by-recency posts))
-        rendered-post (assoc post :rendered-body (get-body post))
-        template (get-template (:template (get-page "/")))]
-    (enlive/template template []
-                     [:h1] (enlive/content (:title rendered-post))
-                     [:span.author] (enlive/content (:author rendered-post))
-                     [:time] (enlive/content (render-date (post-date rendered-post)))
-                     [:time.year] (enlive/content (render-year (post-date rendered-post)))
-                     [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
-                     [:div.post-body] (enlive/html-content (:rendered-body rendered-post))
-                     [:div.navi] (enlive/html-content (hic/html (gen-navi (pages)))))))
+        prev (second (by-recency posts))]
+    (post-template post prev nil)))
 
 (defn- atom-entry [post]
   (let [post-url (str (get-in @config [:settings :site-url]) "/blog/" (:path post))]
@@ -250,7 +262,7 @@
             (render-post post prev next)))
   ([post prev next]
    (let [template (post-template post prev next)]
-     (reduce str (template post)))))
+     (reduce str (template)))))
 
 (defn render-page [path]
   (reduce str ((page-template (get-item-for-path (pages) path)))))
@@ -264,13 +276,3 @@
 
 (defn render-archive []
   (reduce str ((dated-page-template "Archive") (posts))))
-
-
-
-
-
-
-
-
-
-
