@@ -255,7 +255,7 @@ s.setAttribute('data-timestamp', +new Date());
      [:id post-url]
      [:content {:type "html"} (get-body post)]]))
 
-(defn atom-xml [posts]
+(defn- atom-xml [posts]
   (xml/emit-str
    (xml/sexp-as-element
     [:feed {:xmlns "http://www.w3.org/2005/Atom"}
@@ -266,14 +266,24 @@ s.setAttribute('data-timestamp', +new Date());
      [:author [:name (get-in @config [:settings :site-author])]]
      (map atom-entry posts)])))
 
+(def atom-m (memoize atom-xml))
+
 (defn render-feed []
-  (atom-xml (posts)))
+  (atom-m (posts)))
 
 (defn has-post? [path]
   (not (nil? (get-item-for-path (posts) path))))
 
 (defn has-page? [path]
   (not (nil? (get-item-for-path (pages) path))))
+
+(defn render [template template-args & args]
+  (let [applied-template (apply template template-args)]
+    (if (nil? args)
+      (reduce str (applied-template))
+      (reduce str (apply applied-template args)))))
+
+(def render-m (memoize render))
 
 (defn render-post
   ([path] (let [posts (posts)
@@ -285,18 +295,17 @@ s.setAttribute('data-timestamp', +new Date());
                        (nth posts (- index 1)))]
             (render-post post prev next)))
   ([post prev next]
-   (let [template (post-template post prev next)]
-     (reduce str (template)))))
+   (render-m post-template [post prev next])))
 
 (defn render-page [path]
-  (reduce str ((page-template (get-item-for-path (pages) path)))))
+  (render-m page-template [(get-item-for-path (pages) path)]))
 
 (defn render-index []
-  (reduce str ((index-template (posts)))))
+  (render-m index-template [(posts)]))
 
 (defn render-category [category]
-  (reduce str ((dated-page-template (str "Category: " category))
-               (get (by-tag (posts)) category))))
+  (render-m dated-page-template [(str "Category: " category)]
+          (get (by-tag (posts)) category)))
 
 (defn render-archive []
-  (reduce str ((dated-page-template "Archive") (posts))))
+  (render-m dated-page-template ["Archives"] (posts)))
