@@ -1,5 +1,6 @@
 (ns nlogn.core
   (:require [clojure.java.io :as io]
+            [clojure.tools.cli :as cli]
             [compojure.handler :refer [site]]
             [org.httpkit.server :as server]
             [ring.middleware.session.cookie :as cookie]
@@ -53,6 +54,12 @@
   (start-server! (:port @server-handle)
                  (:cfg-path @server-handle)))
 
-(defn -main [& [port cfg-path]]
-  (let [port (Integer. (or port (env :port) 5000))]
+(def cli-options
+  [["-p" "--port PORT" "The port to listen on."]
+   ["-c" "--config PATH" "The path to the config file."]])
+
+(defn -main [& args]
+  (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)
+        port (Integer. (or (:port options) (env :port) 5000))
+        cfg-path (:config options)]
     (start-server! port cfg-path)))
