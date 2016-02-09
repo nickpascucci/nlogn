@@ -22,8 +22,9 @@
   :allowed-methods [:get]
   :exists? (fn [_]
              (println "Checking for" post-path)
-             (when-let [post (ctnt/render-post post-path)]
-               {::data post
+             (when (ctnt/has-post? post-path)
+               (println "Rendering" post-path)
+               {::data (ctnt/render-post post-path)
                 ::id post-path}))
   :handle-not-found (ring-response
                      (resp/resource-response "404.html" {:root "public"}))
@@ -32,8 +33,8 @@
 (defresource page-resource [path]
   :available-media-types ["text/html"]
   :allowed-methods [:get]
-  :exists? (fn [_]  (when-let [page (ctnt/render-page path)]
-                     {::data page}))
+  :exists? (fn [_]  (when (ctnt/has-page? path)
+                     {::data (ctnt/render-page path)}))
   :handle-not-found (ring-response
                      (resp/resource-response "404.html" {:root "public"}))
   :handle-ok ::data)

@@ -35,7 +35,8 @@
   (let [formats [
                  ;; These formats assume UTC:
                  "yyyy-MM-dd" ;; 2016-02-03
-                 "yyyy-MM-dd HH:mm:ss" ;; 2016-02-03 13:37
+                 "yyyy-MM-dd HH:mm" ;; 2016-02-03 13:37
+                 "yyyy-MM-dd HH:mm:ss" ;; 2016-02-03 13:37:12
                  ;; These formats let you specify time zones:
                  "yyyy-MM-dd HH:mm:ss Z" ;; 2016-02-03 13:37 -0500
                  "yyyy-MM-dd HH:mm:ss ZZ" ;; 2016-02-03 13:37 -05:00
@@ -91,9 +92,12 @@
                     tags (:tags post)))
           {} posts))
 
+(defn- published? [post]
+  (get post :published true))
+
 (defn posts []
   "Get all of the posts, ordered from most recent to least recent."
-  (by-recency (get-in @config [:settings :posts])))
+  (by-recency (filter published? (get-in @config [:settings :posts]))))
 
 (defn pages []
   (get-in @config [:settings :pages]))
@@ -109,7 +113,8 @@
   (into []
         (concat [:ul]
                 (map (fn [p] [:li [:a {:href (:path p)}
-                                  (:title p)]])
+                                  (or (:link-text p)
+                                      (:title p))]])
                      pages))))
 
 (defn- post-link [post]
@@ -121,9 +126,16 @@
       (hic/html (eph/to-hiccup (epc/mp (slurp (:content item)))))
       (slurp (:content item)))))
 
+(defn trim-trailing-slash [path]
+  (if (.endsWith path "/")
+    (.substring path 0 (- (.length path) 1))
+    path))
+
 (defn- get-item-for-path [items path]
-  (println "Searching for item to path" path)
-  (first (filter (fn [p] (= (:path p) path)) items)))
+  (let [path (trim-trailing-slash path)]
+    (println "Searching for item to path" path)
+    (first (filter (fn [p] (= (:path p) path))
+                   items))))
 
 (defn- tag-items [post]
   (into [] (map (fn [tag] [:a {:href (str "/blog/categories/" tag)} tag])
@@ -159,10 +171,14 @@ s.setAttribute('data-timestamp', +new Date());
                      ""
                      [:a.newer {:href (post-link next)} "Newer"])])))
 
+(defn- title-text [item]
+  (str (:title item) " - " (get-in @config [:settings :site-title])))
+
 (defn- post-template [post prev next]
   (let [template (get-template (:template post))]
     (enlive/template template []
                      [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
+                     [:title] (enlive/content (title-text post))
                      [:h1] (enlive/content (:title post))
                      [:span.author] (enlive/content (:author post))
                      [:time] (enlive/content (render-date (post-date post)))
@@ -182,6 +198,7 @@ s.setAttribute('data-timestamp', +new Date());
   (let [template (get-template (:template page))]
     (enlive/template template []
                      [:div.navi] (enlive/html-content (hic/html (gen-navi (pages))))
+                     [:title] (enlive/content (title-text page))
                      [:h1] (enlive/content (:title page))
                      [:time.year] (enlive/content (render-year (time/now)))
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
@@ -195,21 +212,22 @@ s.setAttribute('data-timestamp', +new Date());
                     month (render-month date)]
                 (update-in years [year month] conj post))) {} posts)))
 
+(defn- join [lists]
+  (apply concat lists))
+
 (defn- archive-items [posts]
-  (let [posts-by-recency (partition-by-recency posts)]
-    (apply concat
-           (map (fn [[year months]]
-                  (concat [[:div.cat-year year]]
-                          (apply concat
-                                 (map (fn [[month posts]]
-                                        (concat [[:div.cat-month month]]
-                                                (map (fn [post]
-                                                       [:a {:class "title-listing"
-                                                            :href (str "/blog/" (:path post))}
-                                                        (:title post)])
-                                                     posts)))
-                                      months))))
-                posts-by-recency))))
+  (let [posts-by-recency (partition-by-recency posts)
+        post-link (fn [post]
+                    (list [:a {:class "title-listing" :href (str "/blog/" (:path post))}
+                           (:title post)] [:br]))]
+    (join (map (fn [[year months]]
+                 (concat [[:div.cat-year year]]
+                         (join (map (fn [[month posts]]
+                                      (concat
+                                       [[:div.cat-month month]]
+                                       (join (map post-link posts))))
+                                    months))))
+               posts-by-recency))))
 
 (defn- dated-page-template [page-title]
   (let [template (get-template (:template (get-page "/blog/archives")))]
@@ -250,6 +268,12 @@ s.setAttribute('data-timestamp', +new Date());
 
 (defn render-feed []
   (atom-xml (posts)))
+
+(defn has-post? [path]
+  (not (nil? (get-item-for-path (posts) path))))
+
+(defn has-page? [path]
+  (not (nil? (get-item-for-path (pages) path))))
 
 (defn render-post
   ([path] (let [posts (posts)
