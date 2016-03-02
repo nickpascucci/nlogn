@@ -4,8 +4,7 @@ nlogn is a custom blog system designed to meet my (nick pascucci) needs.
 
 # TODO
 ## V1
-+ Static page generation
-+ Configurable site title
++ Optional memoization
 
 ## V2
 + Dump site to static files *a la* Octopress
