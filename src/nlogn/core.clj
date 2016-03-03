@@ -12,8 +12,7 @@
   (:gen-class))
 
 (defonce server-handle (atom {:server nil
-                              :port nil
-                              :cfg-path nil}))
+                              :port nil}))
 
 (defn wrap-logging [handler]
   (fn [req]
@@ -28,23 +27,23 @@
             :headers {"Content-Type" "text/html"}
             :body (slurp (io/resource "500.html"))}))))
 
-(defn start-server! [port cfg-path]
+(defn start-server! [port opts]
   (println "running nlogn server on port" port)
-  (ctnt/load-config! cfg-path)
-  (swap! server-handle assoc :server
-         (server/run-server
-          (-> (handler/make-app)
-              (wrap-logging)
-              ((if (env :production)
-                 wrap-error-page
-                 trace/wrap-stacktrace))
-              ;; TODO: heroku config:add SESSION_SECRET=$RANDOM_16_CHARS
-              (site {:session {:store
-                               (cookie/cookie-store
-                                {:key (env :session-secret)})}}))
-          {:port port :join? false})
-         :port port
-         :cfg-path cfg-path))
+  (ctnt/load-config! opts)
+  (reset! server-handle
+          {:server (server/run-server
+                    (-> (handler/make-app)
+                        (wrap-logging)
+                        ((if (env :production)
+                           wrap-error-page
+                           trace/wrap-stacktrace))
+                        ;; TODO: heroku config:add SESSION_SECRET=$RANDOM_16_CHARS
+                        (site {:session {:store
+                                         (cookie/cookie-store
+                                          {:key (env :session-secret)})}}))
+                    {:port port :join? false})
+           :port port
+           :options opts}))
 
 (defn stop-server! []
   ((:server @server-handle)))
@@ -52,14 +51,14 @@
 (defn restart-server! []
   (stop-server!)
   (start-server! (:port @server-handle)
-                 (:cfg-path @server-handle)))
+                 (:path (:options @server-handle))))
 
 (def cli-options
   [["-p" "--port PORT" "The port to listen on."]
-   ["-c" "--config PATH" "The path to the config file."]])
+   ["-c" "--config PATH" "The path to the config file."]
+   ["-C" "--enable-cache" "Enable caching of rendered posts."]])
 
 (defn -main [& args]
   (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)
-        port (Integer. (or (:port options) (env :port) 5000))
-        cfg-path (:config options)]
-    (start-server! port cfg-path)))
+        port (Integer. (or (:port options) (env :port) 5000))]
+    (start-server! port options)))

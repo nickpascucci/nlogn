@@ -11,21 +11,30 @@
             [net.cgrand.enlive-html :as enlive]))
 
 (defonce config (atom {:path ""
-                   :settings {:posts []
-                              :pages []
-                              :site-author "A brilliant writer"
-                              :date-format "dd MMMM yyyy"
-                              :resource-path ""
-                              :templates {}}}))
+                       :settings {:posts []
+                                  :pages []
+                                  :site-author "A brilliant writer"
+                                  :date-format "dd MMMM yyyy"
+                                  :resource-path ""
+                                  :templates {}
+                                  }
+                       :options {}
+                       }))
 
-(defn load-config! [config-path]
-  (let [settings (edn/read-string (slurp config-path))]
-    (println "Loaded new settings" settings)
-    (reset! config {:path config-path
-                    :settings settings})))
+(defn load-config! [options]
+  (let [config-path (:config options)]
+    (println "Loading config from" config-path)
+    (let [settings (edn/read-string (slurp config-path))]
+      (println "Loaded new settings" settings)
+      (reset! config {:path config-path
+                      :settings settings
+                      :options options}))))
 
 (defn reload-config! []
   (load-config! (:path @config)))
+
+(defn- caching-enabled? []
+  (get-in @config [:options :enable-cache]))
 
 (defn- file-exists? [path]
   (.exists (clojure.java.io/as-file path)))
@@ -266,10 +275,11 @@ s.setAttribute('data-timestamp', +new Date());
      [:author [:name (get-in @config [:settings :site-author])]]
      (map atom-entry posts)])))
 
-(def atom-m (memoize atom-xml))
-
-(defn render-feed []
-  (atom-m (posts)))
+(let [atom-m (memoize atom-xml)]
+  (defn render-feed []
+    (if (caching-enabled?)
+      (atom-m (posts))
+      (atom-xml (posts)))))
 
 (defn has-post? [path]
   (not (nil? (get-item-for-path (posts) path))))
@@ -277,13 +287,18 @@ s.setAttribute('data-timestamp', +new Date());
 (defn has-page? [path]
   (not (nil? (get-item-for-path (pages) path))))
 
-(defn render [template template-args & args]
+(defn render-raw [template template-args & args]
   (let [applied-template (apply template template-args)]
     (if (nil? args)
       (reduce str (applied-template))
       (reduce str (apply applied-template args)))))
 
-(def render-m (memoize render))
+(let [render-m (memoize render-raw)]
+  (defn render [template template-args & args]
+    (apply (if (caching-enabled?)
+             render-m
+             render-raw)
+           template template-args args)))
 
 (defn render-post
   ([path] (let [posts (posts)
@@ -295,17 +310,17 @@ s.setAttribute('data-timestamp', +new Date());
                        (nth posts (- index 1)))]
             (render-post post prev next)))
   ([post prev next]
-   (render-m post-template [post prev next])))
+   (render post-template [post prev next])))
 
 (defn render-page [path]
-  (render-m page-template [(get-item-for-path (pages) path)]))
+  (render page-template [(get-item-for-path (pages) path)]))
 
 (defn render-index []
-  (render-m index-template [(posts)]))
+  (render index-template [(posts)]))
 
 (defn render-category [category]
-  (render-m dated-page-template [(str "Category: " category)]
+  (render dated-page-template [(str "Category: " category)]
           (get (by-tag (posts)) category)))
 
 (defn render-archive []
-  (render-m dated-page-template ["Archives"] (posts)))
+  (render dated-page-template ["Archives"] (posts)))
