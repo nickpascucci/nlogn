@@ -10,8 +10,7 @@
             [hiccup.core :as hic]
             [net.cgrand.enlive-html :as enlive]))
 
-(defonce config (atom {:path ""
-                       :settings {:posts []
+(defonce config (atom {:settings {:posts []
                                   :pages []
                                   :site-author "A brilliant writer"
                                   :date-format "dd MMMM yyyy"
@@ -26,12 +25,12 @@
     (println "Loading config from" config-path)
     (let [settings (edn/read-string (slurp config-path))]
       (println "Loaded new settings" settings)
-      (reset! config {:path config-path
-                      :settings settings
+      (reset! config {:settings settings
                       :options options}))))
 
 (defn reload-config! []
-  (load-config! (:path @config)))
+  (println "Old config:" @config)
+  (load-config! (:options @config)))
 
 (defn- caching-enabled? []
   (get-in @config [:options :enable-cache]))
