@@ -253,15 +253,20 @@ s.setAttribute('data-timestamp', +new Date());
         prev (second (by-recency posts))]
     (post-template post prev nil)))
 
+(defn- absolutify [site-url html]
+  "Replace relative resource paths with absolute ones."
+  (str/replace html "/res/" (str site-url "/res/")))
+
 (defn- atom-entry [post]
-  (let [post-url (str (get-in @config [:settings :site-url]) "/blog/" (:path post))]
+  (let [site-url (get-in @config [:settings :site-url])
+        post-url (str site-url "/blog/" (:path post))]
     [:entry
      [:title (:title post)]
      [:updated (render-iso-date (post-date post))]
      [:author [:name (get-in @config [:settings :site-author])]]
      [:link {:href post-url}]
      [:id post-url]
-     [:content {:type "html"} (get-body post)]]))
+     [:content {:type "html"} (absolutify site-url (get-body post))]]))
 
 (defn- atom-xml [posts]
   (xml/emit-str
