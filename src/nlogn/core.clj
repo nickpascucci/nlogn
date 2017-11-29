@@ -51,7 +51,7 @@
 (defn restart-server! []
   (stop-server!)
   (start-server! (:port @server-handle)
-                 (:path (:options @server-handle))))
+                 (:options @server-handle)))
 
 (def cli-options
   [["-p" "--port PORT" "The port to listen on."]

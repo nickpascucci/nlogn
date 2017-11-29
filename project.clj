@@ -13,7 +13,7 @@
                  [http-kit "2.1.16"]
                  [javax.servlet/servlet-api "2.5"]
                  [liberator "0.10.0"]
-                 [org.clojure/clojure "1.6.0"]
+                 [org.clojure/clojure "1.7.0"]
                  [org.clojure/data.xml "0.0.8"]
                  [org.clojure/tools.cli "0.3.3"]
                  [ring/ring-core "1.2.1"]

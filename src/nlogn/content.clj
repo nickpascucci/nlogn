@@ -15,10 +15,9 @@
                                   :site-author "A brilliant writer"
                                   :date-format "dd MMMM yyyy"
                                   :resource-path ""
-                                  :templates {}
-                                  }
-                       :options {}
-                       }))
+                                  :templates {}}
+                       :options {}}))
+
 
 (defn load-config! [options]
   (let [config-path (:config options)]
@@ -212,13 +211,34 @@ s.setAttribute('data-timestamp', +new Date());
                      [:span#site-author] (enlive/content (get-in @config [:settings :site-author]))
                      [:div.page-body] (enlive/html-content (get-body page)))))
 
+(defonce months-by-name
+  {"January" 1
+   "February" 2
+   "March" 3
+   "April" 4
+   "May" 5
+   "June" 6
+   "July" 7
+   "August" 8
+   "September" 9
+   "October" 10
+   "November" 11
+   "December" 12
+   })
+
+(defn- compare-months [a b]
+  (- (get months-by-name b) (get months-by-name a)))
+
 (defn- partition-by-recency [posts]
-  (let [posts (reverse (by-recency posts))]
-    (reduce (fn [years post]
-              (let [date (post-date post)
-                    year (render-year date)
-                    month (render-month date)]
-                (update-in years [year month] conj post))) {} posts)))
+  (reduce (fn [years post]
+            (let [date (post-date post)
+                  year (render-year date)
+                  month (render-month date)]
+              (update years year (fn [months]
+                                   (if months
+                                     (update-in months [month] conj post)
+                                     (sorted-map-by compare-months month [post]))))))
+          (sorted-map-by #(compare %2 %1)) posts))
 
 (defn- join [lists]
   (apply concat lists))
