@@ -1,0 +1,41 @@
+image: docker:stable
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+stages:
+- build
+- deploy
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN guru.nickpascucci.com:4567
+  - export "IMAGE_VERSION=$CI_COMMIT_SHA"
+  - export "REGISTRY_PREFIX=guru.nickpascucci.com:4567/ndpi/nlogn"
+
+build:
+  stage: build
+  script:
+    - docker build -t $REGISTRY_PREFIX/nlogn:$IMAGE_VERSION .
+    - docker push "$REGISTRY_PREFIX/nlogn:$IMAGE_VERSION"
+
+.deploy-template: &deploy_definition
+  stage: deploy
+  before_script:
+    - export "IMAGE_VERSION=$CI_COMMIT_SHA"
+    - export "REGISTRY_PREFIX=guru.nickpascucci.com:4567/ndpi/nlogn"
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN guru.nickpascucci.com:4567
+    - docker pull "$REGISTRY_PREFIX/nlogn:$IMAGE_VERSION"
+
+deploy:
+  <<: *deploy_definition
+  script:
+    - docker tag "$REGISTRY_PREFIX/nlogn:$IMAGE_VERSION" "$REGISTRY_PREFIX/nlogn:$CI_COMMIT_REF_SLUG"
+    - docker push "$REGISTRY_PREFIX/nlogn:$CI_COMMIT_REF_SLUG"
+
+deploy-master:
+  <<: *deploy_definition
+  script:
+    - docker tag "$REGISTRY_PREFIX/nlogn:$IMAGE_VERSION" "$REGISTRY_PREFIX/nlogn:latest"
+    - docker push "$REGISTRY_PREFIX/nlogn:latest"
+  only:
+    - master
